@@ -1,0 +1,543 @@
+STEP1: TO  CREATE FILES(created with less mb as I am going with 
+dd if=/dev/zero of=./5mb_file bs=5M count=1
+dd if=/dev/zero of=./6mb_file bs=6M count=1
+dd if=/dev/zero of=./7mb_file bs=7M count=1
+dd if=/dev/zero of=./8mb_file bs=8M count=1
+dd if=/dev/zero of=./9mb_file bs=9M count=1
+
+STEP2:  FIND MORE THAN 7MB AND SORT THE FILES AND PRINT and commit to git
+
+#!/bin/bash
+
+# Change to the directory containing the files you want to commit
+cd /path/to/your/directory
+
+# Find the largest file(s) and save the filename(s) to a variable
+largest_files=$(find . -type f -size +10M)
+
+# Commit the largest file(s) to Git with a message
+git add $largest_files
+git commit -m "Committing largest files"
+
+# Push changes to remote repository
+
+git push -u <url>
+STEP6: Bfg-clean.sh
+#!/bin/bash
+
+# Set the path to the bfg-repo-cleaner jar file
+BFG_PATH="/path/to/bfg.jar"
+
+# Set the maximum file size limit in MB
+MAX_SIZE=7M
+
+# Navigate to the repository directory
+cd /path/to/your/repository
+
+# Find files larger than the maximum size limit
+large_files=$(find . -type f -size +${MAX_SIZE}M)
+
+if [[ -n "${large_files}" ]]; then
+    echo "Large files found: ${large_files}"
+
+    # Use bfg-repo-cleaner to remove large files
+    java -jar ${BFG_PATH} --strip-blobs-bigger-than ${MAX_SIZE}M .
+
+    # Clean up the repository
+    git reflog expire --expire=now --all && git gc --prune=now --aggressive
+
+    # Add and commit the changes
+    git add .
+    git commit -m "Clean-up: remove large files"
+
+    # Push the changes to the remote repository
+    git push origin master
+else
+    echo "No large files found."
+fi
+
+
+
+STEP6:Prepare a CRON script that runs periodically to detect the large files
+and perform the clean-up if it finds a large file. Also, the CRON script
+should commit the files which are more than 7 Mb.
+expression to run the cron job every day at 12 pm
+crontab -e
+0 12 * * * /path/to/your/script.sh
+STEP7: create the script 
+script.sh
+#!/bin/bash
+
+# Set the maximum file size limit in MB
+MAX_SIZE=7M
+
+# Navigate to the repository directory
+cd /path/to/your/repository
+
+# Find files larger than the maximum size limit
+large_files=$(find . -type f -size +${MAX_SIZE}M)
+
+if [[ -n "${large_files}" ]]; then
+    echo "Large files found: ${large_files}"
+
+    # Use bfg-repo-cleaner to remove large files
+    java -jar /path/to/bfg.jar --strip-blobs-bigger-than ${MAX_SIZE}M .
+
+    # Clean up the repository
+    git reflog expire --expire=now --all && git gc --prune=now --aggressive
+
+    # Add and commit the changes
+    git add .
+    git commit -m "Clean-up: remove large files"
+
+    # Push the changes to the remote repository
+    git push origin master
+fi
+
+STEP8:
+Clone the git repository:
+git clone https://github.com/matdoering/minimal-flaskexample.git
+Create a new file in the root directory of the cloned repository and name it docker-compose.yml
+In the docker-compose.yml file, add the following configuration
+---
+version: '3'
+services:
+  app:
+    build: .
+    command: python app.py
+    ports:
+      - "5000"
+    depends_on:
+      - db
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: minimal_flaskexample
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - app
+---
+STEP9: Create a new file in the root directory of the cloned repository and name it nginx.conf
+In the nginx.conf file, add the following configuration:
+events {}
+http {
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    server {
+        listen 80;
+        location / {
+            proxy_pass http://app:5000/;
+        }
+    }
+}
+STEP10:Save both files and run the following command to bring up the services:
+docker-compose up --build
+We can access the application by navigating to http://localhost#!/bin/bash
+docker-up.sh
+-----
+# Navigate to the directory containing your docker-compose.yml file
+cd /path/to/your/project
+
+# Bring the Docker Compose project up
+docker-compose up -d
+
+----
+STEP11:MiniKube Installation
+$ sudo apt-get update && sudo apt-get install -y minikube
+Start the minikube
+$ minikube start
+Now we can acess the minicube the single node archestrator in our local host
+Clone the application
+$ git clone https://github.com/matdoering/my-flask-app.git
+Build the docker Image
+$ docker build -t my-flask-app .
+write Deployment yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-flask-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-flask-app
+  template:
+    metadata:
+      labels:
+        app: my-flask-app
+    spec:
+      containers:
+      - name:  my-flask-app
+        image: my-flask-app
+        ports:
+        - containerPort: 3000
+---
+Apply deployment
+$ kubectl apply -f deployment.yaml
+Service creation
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-flask-app
+spec:
+  selector:
+    app: my-flask-app
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+  type: NodePort
+Apply the service 
+$ kubectl apply -f service.yaml
+Access the application
+$ minikube service my-flask-app --url
+Which shows some URL to access the application
+
+MINICUBE DEPLOYMENT OF MY CUSTOM DOCKER IMAGE my-flask-app
+#!/bin/bash
+
+# Start Minikube
+minikube start --vm-driver=docker
+
+# Set the Docker environment variables to use the Minikube Docker daemon
+eval $(minikube docker-env)
+
+# Build your custom Docker image
+docker build -t my-flask-app.
+
+# Deploy the image to the Minikube cluster
+kubectl create deployment my-custom-deployment --image=my-flask-app
+
+# Expose the deployment as a service
+kubectl expose deployment my-custom-deployment --port=80 --target-port=80 --type=NodePort
+
+# Get the URL of the service
+minikube service my-custom-deployment --url
+
+
+
+
+STEP12:Terraform configuration that creates an ECR repository on AWS and deploys it to EKS
+----
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_ecr_repository" "my_repo" {
+  name = "my-ecr-repo"
+}
+
+resource "aws_iam_role" "ecr_eks_role" {
+  name = "ecr-eks-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      },
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "eks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecr_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
+  role       = aws_iam_role.ecr_eks_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  role       = aws_iam_role.ecr_eks_role.name
+}
+
+module "ecr_to_eks" {
+  source = "terraform-aws-modules/eks/aws//modules/ecr"
+
+  ecr_repository_name = aws_ecr_repository.my_repo.name
+  eks_cluster_name    = "my-eks-cluster"
+  create_namespace    = true
+  namespace_name      = "my-namespace"
+  oidc_provider_url   = module.eks_cluster.oidc_provider_url
+  oidc_provider_arn   = module.eks_cluster.oidc_provider_arn
+  region              = "us-east-1"
+  role_name           = aws_iam_role.ecr_eks_role.name
+}
+This script initializes the Terraform configuration, creates an ECR repository on AWS using Terraform, builds the Docker image, pushes it to the ECR repository, and deploys the app to EKS using Terraform.
+
+#!/bin/bash
+
+# Initialize the Terraform configuration
+terraform init
+
+# Create an ECR repository on AWS
+terraform apply -target=aws_ecr_repository.my-flask-app
+
+# Build the Docker image and push it to the ECR repository
+docker build -t my-flask-app .
+aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin aws_account_id.dkr.ecr.us-west-2.amazonaws.com
+docker tag my-flask-app aws_account_id.dkr.ecr.us-west-2.amazonaws.com/my-flask-app:latest
+docker push aws_account_id.dkr.ecr.us-west-2.amazonaws.com/my-flask-app:latest
+
+# Deploy the app to EKS
+terraform apply
+------------
+STEP13:
+Terraform create a CI pipeline - of two environments developments and production(github)
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy-development:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.0.8
+      - name: Terraform Init
+        run: terraform init
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -var-file=development.tfvars
+      - name: Terraform Apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve -var-file=development.tfvars
+      - name: Terraform Apply
+        if: github.event_name == 'pull_request'
+        run: terraform apply -auto-approve -var-file=development.tfvars -input=false
+  deploy-production:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.0.8
+      - name: Terraform Init
+        run: terraform init
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -var-file=production.tfvars
+      - name: Terraform Apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve -var-file=production.tfvars
+      - name: Terraform Apply
+        if: github.event_name == 'pull_request'
+        run: terraform apply -auto-approve -var-file=production.tfvars -input=false
+SHELL SCRIPT OF CI PRODUCTION AND DEVELOPMENT
+#!/bin/bash
+
+# Initialize the Terraform configuration
+terraform init
+
+# Create a GitHub Actions workflow for development environment
+terraform apply -target=github_actions_workflow.development
+
+# Create a GitHub Actions workflow for production environment
+terraform apply -target=github_actions_workflow.production
+
+# Deploy the app to development environment
+terraform apply -target=aws_ecs_task_definition.my-flask-app-development
+terraform apply -target=aws_ecs_service.my-flask-app-development
+
+# Deploy the app to production environment
+terraform apply -target=aws_ecs_task_definition.my-flask-app-production
+terraform apply -target=aws_ecs_service.my-flask-app-production
+
+STEP13:
+CI pipeline in JENKINS to deploy into kubernitis cluster
+---
+pipeline {
+  agent any
+  environment {
+    DOCKER_IMAGE_NAME = 'my-flask-image'
+    DOCKER_IMAGE_TAG = 'latest'
+  }
+  stages {
+stage('Build') {
+      steps {
+        sh 'pip install -r requirements.txt'
+      }
+    }
+    stage('Test') {
+      steps {
+        sh 'pytest'
+      }
+    }
+    stage('Build Docker Image') {
+      steps {
+        sh "docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ."
+      }
+    }
+    stage('Push Docker Image to Registry') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'my-registry-creds', usernameVariable: 'REGISTRY_USERNAME', passwordVariable: 'REGISTRY_PASSWORD')]) {
+          sh "docker login -u ${REGISTRY_USERNAME} -p ${REGISTRY_PASSWORD} my-registry-url"
+          sh "docker push ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+        }
+      }
+    }
+  }
+
+
+---
+STEP14:TO cleanup the dangling images in the ECR 
+1.Connect to AWS cli and execute the command
+ aws ecr describe-repositories
+2.Choose the repository which we have to scan and execute the below command with the particular REPOSITORY_NAME
+aws ecr list-images --repository-name <REPOSITORY_NAME> --filter "dangling=true" --query 'imageIds[*]'
+3.The above command returns list of image IDS which dangles and we can delete those with the below command
+aws ecr batch-delete-image --repository-name <REPOSITORY_NAME> --image-ids <IMAGE_ID_1> <IMAGE_ID_2> ...
+SHELL:
+#!/bin/bash
+
+# Login to ECR
+aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <your_account_id>.dkr.ecr.<region>.amazonaws.com
+
+# Get the list of all image IDs in ECR
+ecr_images=$(aws ecr list-images --repository-name <repo_name> --filter tagStatus=UNTAGGED --query 'imageIds[*]' --output json | jq '.[] | {imageDigest: .imageDigest, imageTag: .imageTag}')
+
+# Delete the images
+for img in $ecr_images; do
+    img_digest=$(echo $img | jq -r '.imageDigest')
+    img_tag=$(echo $img | jq -r '.imageTag')
+    aws ecr batch-delete-image --repository-name <repo_name> --image-ids imageDigest=$img_digest,imageTag=$img_tag
+done
+
+STEP15:
+Install and configure Prometheus to monitor your Kubernetes cluster
+config file to deploy the prometheus instance in kubernetes cluster
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: prometheus
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus
+        args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        ports:
+        - containerPort: 9090
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+-----
+Service type nodeport which listens prometheus in port number 9090
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+spec:
+  type: NodePort
+  ports:
+  - name: web
+    port: 9090
+    targetPort: 9090
+    nodePort: 30000
+  selector:
+    app: prometheus
+
+JSON FILE to deploy  a Graphana dashbaord
+1.First creat a namespace with graphana
+2.create a config file
+kubectl create configmap grafana-dashboard --from-file=graphana.json -n grafana
+3.Deploy grahana with yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:latest
+        ports:
+        - containerPort: 3000
+        volumeMounts:
+        - name: grafana-dashboard
+          mountPath: /var/lib/grafana/dashboards
+        env:
+        - name: GF_INSTALL_PLUGINS
+          value: grafana-piechart-panel
+      volumes:
+      - name: grafana-dashboard
+        configMap:
+          name: grafana-dashboard
+---
+Service definition file.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: grafana
+spec:
+  selector:
+    app: grafana
+  type: NodePort
+  ports:
+  - name: http
+    port: 3000
+    nodePort: 32000
+    protocol: TCP
+---
+4.Apply the yaml file
+kubectl apply -f grafana.yaml
+Now we can acess the graphana through http://<node_ip>:32000
+
+
+
