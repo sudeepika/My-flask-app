@@ -1,0 +1,32 @@
+pipeline {
+  agent any
+  environment {
+    DOCKER_IMAGE_NAME = 'my-flask-image'
+    DOCKER_IMAGE_TAG = 'latest'
+  }
+  stages {
+stage('Build') {
+      steps {
+        sh 'pip install -r requirements.txt'
+      }
+    }
+    stage('Test') {
+      steps {
+        sh 'pytest'
+      }
+    }
+    stage('Build Docker Image') {
+      steps {
+        sh "docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ."
+      }
+    }
+    stage('Push Docker Image to Registry') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'my-registry-creds', usernameVariable: 'REGISTRY_USERNAME', passwordVariable: 'REGISTRY_PASSWORD')]) {
+          sh "docker login -u ${REGISTRY_USERNAME} -p ${REGISTRY_PASSWORD} my-registry-url"
+          sh "docker push ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+        }
+      }
+    }
+  }
+
